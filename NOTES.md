@@ -41,6 +41,12 @@ We implemented optimistic concurrency protection in `app/services/books.py`:
 * If a concurrent insert collides at the database level, we immediately issue `db.rollback()` to restore connection health and raise `HTTPException(status_code=409, detail="A book with this ISBN already exists")`.
 * This guarantees data integrity and prevents unhandled 500 crashes under concurrent load.
 
+### Database-Level Aggregation vs. In-Memory Pagination
+When implementing `list_books` pagination, calculating `total` (the total count of matching books before slicing) poses an architectural choice:
+* **In-Memory Counting (`len(all_books)`)**: Simpler to write, but requires fetching every column of every matching row into Python memory. In a production catalog with hundreds of thousands of books, this causes severe $O(N)$ memory bloat, high network I/O, and CPU pressure on every request.
+* **Database-Side Aggregation (`select(func.count()).select_from(query.subquery())`)**: We delegate row counting directly to SQLite's optimized C engine. The database computes the count internally and returns a single 4-byte integer ($O(1)$ memory).
+* **Benefit**: Combined with SQL-level `.limit(limit).offset(offset)`, this architecture guarantees that the application maintains a constant, predictable $O(\text{page\_size})$ memory footprint regardless of whether the store has 50 books or 500,000 books.
+
 ---
 
 ## 4. Spec Ambiguities & Clarifications

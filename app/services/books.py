@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models import Book
 from app.schemas import BookCreate, BookPage, BookSort, BookUpdate
 
+from sqlalchemy import func, or_, select
 
 def create_book(db: Session, data: BookCreate) -> Book:
     """Add a book to the catalogue.
@@ -45,7 +46,7 @@ def update_book(db: Session, book_id: int, data: BookUpdate) -> Book:
     updates = data.model_dump(exclude_unset=True)
     for field,value in updates.items():
         setattr(book,field,value)
-        
+
     db.commit()
     db.refresh(book)
     return book
@@ -72,13 +73,34 @@ def list_books(
     """
     query = select(Book)
     if q:
-        query = query.where(Book.title.icontains(q, autoescape=True))
+        query = query.where(or_(Book.title.icontains(q, autoescape=True),Book.author.icontains(q,autoescape=True)))
+    
     if restricted is not None:
         query = query.where(Book.restricted == restricted)
+    
     # TODO: min_price / max_price filters
+    if min_price is not None:
+        query = query.where(Book.price_cents >= min_price)
+
+    if max_price is not None:
+        query = query.where(Book.price_cents <= max_price)
 
     # TODO: apply ``sort``
-    books = db.scalars(query.order_by(Book.id.asc()).limit(limit).offset(offset)).all()
-    total = len(books)
+    count_query=select(func.count()).select_from(query.subquery())
+    total=db.scalar(count_query) or 0
+    if sort == "title":
+        query = query.order_by(Book.title.asc(), Book.id.asc())
+    elif sort == "-title":
+        query = query.order_by(Book.title.desc(), Book.id.asc())
+    elif sort == "price":
+        query = query.order_by(Book.price_cents.asc(), Book.id.asc())
+    elif sort == "-price":
+        query = query.order_by(Book.price_cents.desc(), Book.id.asc())
+    else:
+        # Default order when sort is omitted
+        query = query.order_by(Book.id.asc())
+
+    books = db.scalars(query.limit(limit).offset(offset)).all()
+   
 
     return BookPage(items=books, total=total, limit=limit, offset=offset)
