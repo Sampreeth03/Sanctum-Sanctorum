@@ -5,7 +5,7 @@ import enum
 from datetime import datetime
 from typing import List
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -34,7 +34,7 @@ class Book(Base):
     author: Mapped[str] = mapped_column(String(200))
     isbn: Mapped[str] = mapped_column(String(13), unique=True, index=True)
     price_cents: Mapped[int] = mapped_column(Integer)
-    stock: Mapped[int] = mapped_column(Integer)
+    stock: Mapped[int] = mapped_column(Integer, CheckConstraint("stock >= 0", name="check_stock_non_negative"))
     restricted: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
