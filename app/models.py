@@ -5,7 +5,7 @@ import enum
 from datetime import datetime
 from typing import List,Optional
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -90,18 +90,17 @@ class OrderItem(Base):
 
 class Loan(Base):
     __tablename__ = "loans"
+    __table_args__ = (
+        Index("ix_loans_member_active", "member_id", "returned_at"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     member_id: Mapped[int] = mapped_column(ForeignKey("members.id"), index=True)
     book_id: Mapped[int] = mapped_column(ForeignKey("books.id"), index=True)
     borrowed_at: Mapped[datetime] = mapped_column(DateTime)
-    # TODO: the loan model is incomplete. Still missing (see SPEC.md, "Loans"):
-    #   - due_at: when the book must be back (borrowed_at + 14 days)
-    #   - returned_at: nullable, set when the book is returned
-    #   - late_fee_cents: charged on return, defaults to 0
+    due_at: Mapped[datetime] = mapped_column(DateTime)
+    returned_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, default=None)
+    late_fee_cents: Mapped[int] = mapped_column(Integer, default=0)
 
     member: Mapped[Member] = relationship(back_populates="loans")
     book: Mapped[Book] = relationship()
-    due_at: Mapped[datetime] = mapped_column(DateTime)
-    returned_at: Mapped[Optional[datetime]]=mapped_column(DateTime,nullable=True,default=None)
-    late_fee_cents:Mapped[int]=mapped_column(Integer,default=0)

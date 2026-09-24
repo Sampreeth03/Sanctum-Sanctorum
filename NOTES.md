@@ -13,7 +13,7 @@
 * [x] **Book Updates & Catalogue Browsing**: `PATCH /books/{id}`, search filters, sorting, and pagination.
 * [x] **Members**: Registration, case-insensitive duplicate email handling, and tier hierarchy access rules.
 * [x] **Orders**: Tier/bulk discounts, all-or-nothing stock reservation, and status transitions (pay/cancel).
-* [ ] **Loans**: ORM model completion, loan limits, due dates, returns, and late fee calculation.
+* [x] **Loans**: ORM model completion, loan limits, due dates, returns, and late fee calculation.
 * [ ] **Reports & Stats**: Top books report and member activity summaries.
 
 ---
@@ -59,6 +59,13 @@ When validating incoming order payloads (`OrderCreate.items`), duplicate `book_i
   * The total validation takes linear $O(N)$ time.
   * **Short-circuiting / Fail-Fast**: The moment a duplicate is encountered, validation immediately halts and raises a `ValueError` without parsing the rest of the payload.
 * **Decision**: We chose hash-set tracking with immediate short-circuiting for optimal $O(N)$ time complexity, minimal memory overhead, and clear diagnostic error messages identifying the exact duplicate ID.
+
+### High-Performance Querying & Concurrency Defense for Library Loans
+When designing borrowing and return workflows in `app/services/loans.py` and `app/models.py`, several architectural choices were implemented:
+* **Single-Query Active Loan Cache**: Borrowing validation requires checking three distinct conditions: overdue loans, duplicate book borrowing, and tier loan limits. Rather than issuing three sequential queries to the database, a single filtered query (`Loan.member_id == member.id, Loan.returned_at.is_(None)`) loads the member's active loan set into memory. All three business checks execute in $O(K)$ time in Python, reducing database round-trips by 66%.
+* **Composite B-Tree Index (`ix_loans_member_active`)**: Over time, members accumulate dozens or hundreds of returned loans. To prevent sequential table scans when querying unreturned books, a composite index on `(member_id, returned_at)` ensures that active loan filtering runs in $O(1)$ index lookup time regardless of historical record depth.
+* **Borrowing Concurrency Defense**: By wrapping `db.commit()` in a `try...except IntegrityError` block during `create_loan`, simultaneous borrow requests for the last physical copy of a book safely trigger the database `CheckConstraint("stock >= 0")` and roll back gracefully with HTTP 409, preventing server crashes and inventory overselling.
+* **ORM Declarative Ordering Reuse**: In `list_member_loans`, rather than writing ad-hoc SQL ordering clauses, we directly accessed `member.loans`, which leverages the relationship's declared `order_by="Loan.id"`. This keeps query definitions DRY and tied directly to the domain model contract.
 
 ---
 
