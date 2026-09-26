@@ -77,6 +77,7 @@ In accordance with the specification's guidance to avoid pulling unbounded colle
 
 ## 4. Spec Ambiguities & Clarifications
 * **Mixed-case sorting**: As highlighted in SPEC.md, databases sort uppercase and lowercase characters differently (SQLite sorts uppercase first; Postgres default collations differ). We follow standard database ordering with secondary ID tie-breaking.
+* **Frontend Loan Return Action (`frontend/app.js`)**: When interacting with the demo UI, clicking the "Return" button on active loans does not dispatch an API request. Investigation of `frontend/app.js` confirmed that while the backend `POST /loans/{id}/return` endpoint and the frontend `returnLoan(...)` helper are both fully implemented, `case 'loan-return': returnLoan(id, target); break;` was omitted from the `initActions` click event switch statement in the starter kit. In adherence to the assignment guidelines ("You may change anything in `app/`"), we left the `frontend/` files untouched and verified that the backend API strictly satisfies all requirements and passes 100% of acceptance tests.
 
 ---
 
