@@ -4,11 +4,11 @@ from datetime import datetime
 from typing import List
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Member, MemberTier, Order, OrderStatus
-from app.schemas import MemberCreate, MemberStats
+from app.schemas import MemberCreate, MemberPage, MemberStats
 
 # Tiers from lowest to highest; a member's rank is their index in this list.
 TIER_ORDER: List[str] = [
@@ -55,6 +55,15 @@ def create_member(db: Session, data: MemberCreate, now: datetime) -> Member:
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="Email Already Registered")
+
+
+def list_members(db: Session, limit: int = 20, offset: int = 0) -> MemberPage:
+    """List members with database-side count and pagination ordered by id ascending."""
+    query = select(Member)
+    count_query = select(func.count()).select_from(query.subquery())
+    total = db.scalar(count_query) or 0
+    members = list(db.scalars(query.order_by(Member.id.asc()).limit(limit).offset(offset)))
+    return MemberPage(items=members, total=total, limit=limit, offset=offset)
 
 
 def get_member(db: Session, member_id: int) -> Member:

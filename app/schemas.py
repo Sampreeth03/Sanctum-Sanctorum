@@ -134,6 +134,14 @@ class MemberOut(BaseModel):
     created_at: datetime
 
 
+class MemberPage(BaseModel):
+    items: List[MemberOut]
+    total: int
+    limit: int
+    offset: int
+
+
+
 class MemberStats(BaseModel):
     member_id: int
     orders_paid: int
