@@ -3,8 +3,8 @@
 ## 1. Live Deployment
 * **Live URL:** https://sanctum-sanctorum-nine.vercel.app
 * **Demo Member IDs to sign in with:**
-  * Member ID `1`: Stephen Strange (Master tier)
-  * Member ID `2`: Wong (Adept tier)
+  * Member ID `5`: J. V. Satyanarayana (Master tier)
+  * Member ID `6`: Josyula Siva Sampreeth (Supreme tier)
 
 ---
 
